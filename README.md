@@ -10,14 +10,14 @@ It includes:
 - Fetching the available model list directly from the configured API endpoint
 - Testing the currently selected model before running a batch
 - Optional chunk caching for resume and retry workflows
-- Windows single-file packaging and macOS Apple Silicon packaging
+- Windows single-file packaging and macOS Apple Silicon app-plus-DMG packaging
 - GitHub Actions builds for Windows and macOS ARM
 
 ## Main Files
 
 - `pdf_to_formatted_markdown_gui.py`: desktop GUI application
 - `pdf_to_formatted_markdown.py`: conversion pipeline and API workflow
-- `pdf2md.config`: app config stored next to the executable or script
+- `pdf2md.config`: app config stored next to the executable on Windows and inside the macOS app bundle
 - `pdf2md-gui.spec`: PyInstaller spec
 - `build_pdf2md_gui.ps1`: local Windows build script
 - `build_pdf2md_gui_macos_arm.sh`: local macOS ARM build script
@@ -69,12 +69,19 @@ chmod +x ./build_pdf2md_gui_macos_arm.sh
 
 This must run on an actual macOS arm64 machine. PyInstaller does not cross-build macOS apps from Windows.
 
+This produces:
+
+- `dist/pdf2md-gui.app`
+- `dist/pdf2md-gui-macos-arm64.dmg`
+
+The DMG contains the `.app` bundle plus an `Applications` shortcut so the app can be dragged into `/Applications` in the standard macOS install flow.
+
 ## GitHub Actions
 
 The repository includes an Actions workflow that builds:
 
 - Windows single-file exe on `windows-latest`
-- macOS ARM app on `macos-14`
+- macOS ARM DMG on `macos-14`
 
 The workflow runs on:
 
@@ -87,7 +94,7 @@ Build outputs are uploaded as workflow artifacts.
 When you push a tag such as `v1.0.0`, the workflow also creates a GitHub Release automatically and uploads:
 
 - `pdf2md-gui-windows-x64.zip`
-- `pdf2md-gui-macos-arm64.zip`
+- `pdf2md-gui-macos-arm64.dmg`
 
 ## Config
 
