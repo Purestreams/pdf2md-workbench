@@ -1,5 +1,8 @@
 # PDF2MD Workbench
 
+<img width="1518" height="838" alt="Screenshot 2026-05-16 at 2 35 29 PM" src="https://github.com/user-attachments/assets/093ad210-09bc-4a73-b42f-79ffa6b5b416" />
+
+
 PDF2MD Workbench is a desktop GUI for converting PDF, DOC, DOCX, PPT, and PPTX files into formatted Markdown through the Responses API.
 
 It includes:
