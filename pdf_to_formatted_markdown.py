@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import shutil
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -17,6 +18,11 @@ from pathlib import Path
 from typing import Callable, Iterator, List, Optional, Sequence
 from urllib.parse import urlparse, urlunparse
 from urllib import error, request
+
+try:
+    import certifi
+except ImportError:
+    certifi = None
 
 try:
     import fitz
@@ -243,8 +249,15 @@ def extract_model_ids(payload: dict) -> list[str]:
     return sorted(set(model_ids), key=str.casefold)
 
 
+def create_ssl_context() -> ssl.SSLContext:
+    if certifi is not None:
+        return ssl.create_default_context(cafile=certifi.where())
+    return ssl.create_default_context()
+
+
 def list_available_models(api_url: str, api_key: str, timeout: int) -> list[str]:
     models_url = derive_models_api_url(api_url)
+    ssl_context = create_ssl_context()
     req = request.Request(
         models_url,
         headers={
@@ -256,7 +269,7 @@ def list_available_models(api_url: str, api_key: str, timeout: int) -> list[str]
     )
 
     try:
-        with request.urlopen(req, timeout=timeout) as resp:
+        with request.urlopen(req, timeout=timeout, context=ssl_context) as resp:
             body = resp.read().decode("utf-8", errors="replace")
     except error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
@@ -884,6 +897,7 @@ def call_responses_api(
     stream_progress_callback: Optional[Callable[[StreamProgress], None]] = None,
 ) -> str:
     payload = create_responses_payload(model=model, content=content, stream=stream)
+    ssl_context = create_ssl_context()
     req = request.Request(
         api_url,
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
@@ -896,7 +910,7 @@ def call_responses_api(
     )
 
     try:
-        with request.urlopen(req, timeout=timeout) as resp:
+        with request.urlopen(req, timeout=timeout, context=ssl_context) as resp:
             if not stream:
                 body = resp.read().decode("utf-8", errors="replace")
                 data = json.loads(body)
