@@ -36,7 +36,8 @@ if [[ ! -d "$APP_PATH" ]]; then
   exit 1
 fi
 
-cp pdf2md.config "$APP_PATH/Contents/MacOS/pdf2md.config"
+codesign --force --deep --sign - "$APP_PATH"
+codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
 rm -rf "$DMG_STAGING_DIR"
 mkdir -p "$DMG_STAGING_DIR"

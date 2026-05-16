@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import shutil
 import sys
 import threading
 import time
@@ -35,6 +36,7 @@ except ImportError as exc:
 
 
 CONFIG_FILE_NAME = "pdf2md.config"
+MACOS_APP_SUPPORT_DIR_NAME = "PDF2MD Workbench"
 CONFIG_VERSION = 2
 SUPPORTED_INPUT_LABEL = "PDF, DOC, DOCX, PPT, or PPTX"
 CONFIG_DEFAULTS = {
@@ -90,13 +92,39 @@ def get_application_directory() -> Path:
     return Path(__file__).resolve().parent
 
 
+def get_macos_user_config_directory() -> Path:
+    return Path.home() / "Library" / "Application Support" / MACOS_APP_SUPPORT_DIR_NAME
+
+
+def get_legacy_macos_bundle_config_path() -> Path | None:
+    if sys.platform == "darwin" and getattr(sys, "frozen", False):
+        return get_application_directory() / CONFIG_FILE_NAME
+    return None
+
+
 def get_config_path() -> Path:
+    if sys.platform == "darwin" and getattr(sys, "frozen", False):
+        return get_macos_user_config_directory() / CONFIG_FILE_NAME
     return get_application_directory() / CONFIG_FILE_NAME
 
 
+def migrate_legacy_macos_bundle_config(config_path: Path) -> str | None:
+    legacy_path = get_legacy_macos_bundle_config_path()
+    if legacy_path is None or not legacy_path.is_file() or config_path.exists():
+        return None
+
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        shutil.copy2(legacy_path, config_path)
+    except OSError as exc:
+        return f"Could not migrate legacy macOS config from {legacy_path}: {exc}"
+    return f"Migrated legacy macOS config from {legacy_path} to {config_path}."
+
+
 def load_config_file(config_path: Path) -> tuple[dict, str | None]:
+    migration_message = migrate_legacy_macos_bundle_config(config_path)
     if not config_path.is_file():
-        return dict(CONFIG_DEFAULTS), None
+        return dict(CONFIG_DEFAULTS), migration_message
 
     try:
         payload = json.loads(config_path.read_text(encoding="utf-8"))
@@ -107,10 +135,11 @@ def load_config_file(config_path: Path) -> tuple[dict, str | None]:
         return dict(CONFIG_DEFAULTS), f"Ignored {config_path.name}: expected a JSON object."
 
     config_data = {**CONFIG_DEFAULTS, **payload, "config_version": CONFIG_VERSION}
-    return config_data, None
+    return config_data, migration_message
 
 
 def write_config_file(config_path: Path, config_data: dict) -> None:
+    config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(json.dumps(config_data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 

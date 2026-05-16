@@ -17,7 +17,7 @@ It includes:
 
 - `pdf_to_formatted_markdown_gui.py`: desktop GUI application
 - `pdf_to_formatted_markdown.py`: conversion pipeline and API workflow
-- `pdf2md.config`: app config stored next to the executable on Windows and inside the macOS app bundle
+- `pdf2md.config`: app config stored next to the executable on Windows and in `~/Library/Application Support/PDF2MD Workbench/` on macOS
 - `pdf2md-gui.spec`: PyInstaller spec
 - `build_pdf2md_gui.ps1`: local Windows build script
 - `build_pdf2md_gui_macos_arm.sh`: local macOS ARM build script
@@ -44,6 +44,8 @@ python pdf_to_formatted_markdown_gui.py
 ```
 
 At first launch the app creates `pdf2md.config` if it does not exist.
+
+On macOS packaged builds, the config is stored in `~/Library/Application Support/PDF2MD Workbench/pdf2md.config` instead of inside the `.app` bundle.
 
 After entering the API URL and token, use `Fetch Models` in the settings panel to load the remote model catalog, then use `Test Model` to verify the selected model before processing documents.
 
