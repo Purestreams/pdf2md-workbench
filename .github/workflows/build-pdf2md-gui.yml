@@ -1,5 +1,8 @@
 name: Build PDF2MD GUI
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 permissions:
   contents: write
 
@@ -16,8 +19,8 @@ jobs:
     name: Windows single-file exe
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Build Windows exe
@@ -30,7 +33,7 @@ jobs:
           Copy-Item dist\pdf2md-gui.exe release\pdf2md-gui-windows-x64\ -Force
           Copy-Item dist\pdf2md.config release\pdf2md-gui-windows-x64\ -Force
           Compress-Archive -Path release\pdf2md-gui-windows-x64\* -DestinationPath release\pdf2md-gui-windows-x64.zip -Force
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: pdf2md-gui-windows
           path: |
@@ -42,8 +45,8 @@ jobs:
     name: macOS ARM app
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Build macOS ARM app
@@ -61,7 +64,7 @@ jobs:
           fi
           cp dist/pdf2md.config release/pdf2md-gui-macos-arm64/
           ditto -c -k --sequesterRsrc --keepParent release/pdf2md-gui-macos-arm64 release/pdf2md-gui-macos-arm64.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: pdf2md-gui-macos-arm
           path: |
@@ -78,11 +81,11 @@ jobs:
       - macos-arm
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: pdf2md-gui-windows
           path: artifacts/windows
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: pdf2md-gui-macos-arm
           path: artifacts/macos-arm
