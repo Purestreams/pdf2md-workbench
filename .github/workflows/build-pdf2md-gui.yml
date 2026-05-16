@@ -1,5 +1,8 @@
 name: Build PDF2MD GUI
 
+permissions:
+  contents: write
+
 on:
   push:
     branches:
@@ -20,12 +23,20 @@ jobs:
       - name: Build Windows exe
         shell: pwsh
         run: .\build_pdf2md_gui.ps1 -SkipSmokeTest
+      - name: Package Windows release archive
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release\pdf2md-gui-windows-x64 | Out-Null
+          Copy-Item dist\pdf2md-gui.exe release\pdf2md-gui-windows-x64\ -Force
+          Copy-Item dist\pdf2md.config release\pdf2md-gui-windows-x64\ -Force
+          Compress-Archive -Path release\pdf2md-gui-windows-x64\* -DestinationPath release\pdf2md-gui-windows-x64.zip -Force
       - uses: actions/upload-artifact@v4
         with:
           name: pdf2md-gui-windows
           path: |
             dist/pdf2md-gui.exe
             dist/pdf2md.config
+            release/pdf2md-gui-windows-x64.zip
 
   macos-arm:
     name: macOS ARM app
@@ -39,6 +50,17 @@ jobs:
         run: |
           chmod +x ./build_pdf2md_gui_macos_arm.sh
           ./build_pdf2md_gui_macos_arm.sh
+      - name: Package macOS ARM release archive
+        run: |
+          mkdir -p release/pdf2md-gui-macos-arm64
+          if [ -d "dist/pdf2md-gui.app" ]; then
+            cp -R "dist/pdf2md-gui.app" release/pdf2md-gui-macos-arm64/
+          fi
+          if [ -f "dist/pdf2md-gui" ]; then
+            cp "dist/pdf2md-gui" release/pdf2md-gui-macos-arm64/
+          fi
+          cp dist/pdf2md.config release/pdf2md-gui-macos-arm64/
+          ditto -c -k --sequesterRsrc --keepParent release/pdf2md-gui-macos-arm64 release/pdf2md-gui-macos-arm64.zip
       - uses: actions/upload-artifact@v4
         with:
           name: pdf2md-gui-macos-arm
@@ -46,3 +68,28 @@ jobs:
             dist/pdf2md-gui.app
             dist/pdf2md-gui
             dist/pdf2md.config
+            release/pdf2md-gui-macos-arm64.zip
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - windows
+      - macos-arm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pdf2md-gui-windows
+          path: artifacts/windows
+      - uses: actions/download-artifact@v4
+        with:
+          name: pdf2md-gui-macos-arm
+          path: artifacts/macos-arm
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/windows/release/pdf2md-gui-windows-x64.zip
+            artifacts/macos-arm/release/pdf2md-gui-macos-arm64.zip

@@ -84,6 +84,11 @@ The workflow runs on:
 
 Build outputs are uploaded as workflow artifacts.
 
+When you push a tag such as `v1.0.0`, the workflow also creates a GitHub Release automatically and uploads:
+
+- `pdf2md-gui-windows-x64.zip`
+- `pdf2md-gui-macos-arm64.zip`
+
 ## Config
 
 `pdf2md.config` stores:
