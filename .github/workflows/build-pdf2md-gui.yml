@@ -1,0 +1,48 @@
+name: Build PDF2MD GUI
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  windows:
+    name: Windows single-file exe
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build Windows exe
+        shell: pwsh
+        run: .\build_pdf2md_gui.ps1 -SkipSmokeTest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pdf2md-gui-windows
+          path: |
+            dist/pdf2md-gui.exe
+            dist/pdf2md.config
+
+  macos-arm:
+    name: macOS ARM app
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build macOS ARM app
+        run: |
+          chmod +x ./build_pdf2md_gui_macos_arm.sh
+          ./build_pdf2md_gui_macos_arm.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pdf2md-gui-macos-arm
+          path: |
+            dist/pdf2md-gui.app
+            dist/pdf2md-gui
+            dist/pdf2md.config
