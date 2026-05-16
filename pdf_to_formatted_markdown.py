@@ -15,6 +15,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterator, List, Optional, Sequence
+from urllib.parse import urlparse, urlunparse
 from urllib import error, request
 
 try:
@@ -194,6 +195,84 @@ def resolve_output_path(input_path: Path, output_arg: str) -> Optional[Path]:
     if output_arg:
         return Path(output_arg)
     return input_path.with_suffix(".md")
+
+
+def derive_models_api_url(api_url: str) -> str:
+    parsed = urlparse(api_url)
+    path = parsed.path.rstrip("/")
+    known_suffixes = (
+        "/responses",
+        "/chat/completions",
+        "/completions",
+        "/messages",
+    )
+
+    for suffix in known_suffixes:
+        if path.endswith(suffix):
+            path = path[: -len(suffix)]
+            break
+
+    if not path.endswith("/models"):
+        path = f"{path}/models" if path else "/models"
+
+    return urlunparse(parsed._replace(path=path, params="", query="", fragment=""))
+
+
+def extract_model_ids(payload: dict) -> list[str]:
+    candidates = payload.get("data")
+    if candidates is None:
+        candidates = payload.get("models")
+
+    model_ids: list[str] = []
+    if isinstance(candidates, list):
+        for item in candidates:
+            if isinstance(item, dict):
+                model_id = item.get("id") or item.get("model") or item.get("name")
+            else:
+                model_id = item
+
+            if isinstance(model_id, str) and model_id.strip():
+                model_ids.append(model_id.strip())
+
+    if not model_ids:
+        for key in ("id", "model", "name"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                model_ids.append(value.strip())
+
+    return sorted(set(model_ids), key=str.casefold)
+
+
+def list_available_models(api_url: str, api_key: str, timeout: int) -> list[str]:
+    models_url = derive_models_api_url(api_url)
+    req = request.Request(
+        models_url,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "ark-beta-mcp": "true",
+        },
+        method="GET",
+    )
+
+    try:
+        with request.urlopen(req, timeout=timeout) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+    except error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Model list request failed ({exc.code}): {body}") from exc
+    except error.URLError as exc:
+        raise RuntimeError(f"Model list request failed: {exc.reason}") from exc
+
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Model list endpoint did not return JSON: {body[:300]}") from exc
+
+    model_ids = extract_model_ids(payload)
+    if not model_ids:
+        raise RuntimeError(f"Model list endpoint returned no models: {body[:500]}")
+    return model_ids
 
 
 def ensure_api_key(api_key: str) -> str:

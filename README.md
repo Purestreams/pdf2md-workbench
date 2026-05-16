@@ -7,6 +7,8 @@ It includes:
 - A queue-based desktop GUI with drag-and-drop
 - Batch processing with per-file status, progress, retry, and cancel
 - Streaming token metrics during conversion
+- Fetching the available model list directly from the configured API endpoint
+- Testing the currently selected model before running a batch
 - Optional chunk caching for resume and retry workflows
 - Windows single-file packaging and macOS Apple Silicon packaging
 - GitHub Actions builds for Windows and macOS ARM
@@ -42,6 +44,8 @@ python pdf_to_formatted_markdown_gui.py
 ```
 
 At first launch the app creates `pdf2md.config` if it does not exist.
+
+After entering the API URL and token, use `Fetch Models` in the settings panel to load the remote model catalog, then use `Test Model` to verify the selected model before processing documents.
 
 ## Build Locally
 
@@ -85,6 +89,7 @@ Build outputs are uploaded as workflow artifacts.
 `pdf2md.config` stores:
 
 - API URL and model
+- cached model list fetched from the remote API
 - output folder
 - style reference path
 - chunk cache directory

@@ -23,6 +23,7 @@ from pdf_to_formatted_markdown import (
     call_responses_api,
     convert_pdf_to_markdown,
     find_soffice_executable,
+    list_available_models,
 )
 
 try:
@@ -41,6 +42,7 @@ CONFIG_DEFAULTS = {
     "api_key": "",
     "api_url": DEFAULT_API_URL,
     "model": DEFAULT_MODEL,
+    "known_models": [],
     "output_dir": "",
     "style_reference": "",
     "pages_per_request": "4",
@@ -153,6 +155,7 @@ class MarkdownConverterApp:
         self.api_key_var = tk.StringVar(value=self.get_config_string("api_key", os.environ.get("ARK_API_KEY", "")))
         self.api_url_var = tk.StringVar(value=self.get_config_string("api_url", DEFAULT_API_URL))
         self.model_var = tk.StringVar(value=self.get_config_string("model", DEFAULT_MODEL))
+        self.model_status_var = tk.StringVar(value="Models: manual entry or fetch list")
         self.output_dir_var = tk.StringVar(value=self.get_config_string("output_dir", ""))
         self.style_reference_var = tk.StringVar(value=self.get_config_string("style_reference", ""))
         self.pages_per_request_var = tk.StringVar(value=self.get_config_string("pages_per_request", "4"))
@@ -167,6 +170,7 @@ class MarkdownConverterApp:
         self.status_var = tk.StringVar(value="Ready")
         self.summary_var = tk.StringVar(value="0 queued | 0 running | 0 done | 0 failed | 0 cancelled")
         self.stream_metrics_var = tk.StringVar(value="Streaming metrics: idle")
+        self.available_models = self.build_initial_model_choices()
 
         self._configure_style()
         self._build_ui()
@@ -187,6 +191,44 @@ class MarkdownConverterApp:
         if isinstance(value, str):
             return value.strip().lower() in {"1", "true", "yes", "y", "on"}
         return bool(value) if value is not None else default
+
+    def get_config_list(self, key: str) -> list[str]:
+        value = self.config_data.get(key, [])
+        if not isinstance(value, list):
+            return []
+        items: list[str] = []
+        for item in value:
+            if isinstance(item, str) and item.strip():
+                items.append(item.strip())
+        return items
+
+    def build_initial_model_choices(self) -> list[str]:
+        model_choices = self.get_config_list("known_models")
+        current_model = self.model_var.get().strip()
+        for candidate in (current_model, DEFAULT_MODEL):
+            if candidate and candidate not in model_choices:
+                model_choices.append(candidate)
+        return sorted(set(model_choices), key=str.casefold)
+
+    def update_model_choices(self, models: list[str], preferred_model: str | None = None) -> None:
+        normalized = [model.strip() for model in models if isinstance(model, str) and model.strip()]
+        if preferred_model and preferred_model.strip():
+            normalized.append(preferred_model.strip())
+        normalized.append(DEFAULT_MODEL)
+        self.available_models = sorted(set(normalized), key=str.casefold)
+        if hasattr(self, "model_combo"):
+            self.model_combo.configure(values=self.available_models)
+
+        target_model = preferred_model.strip() if preferred_model and preferred_model.strip() else self.model_var.get().strip()
+        if target_model and target_model in self.available_models:
+            self.model_var.set(target_model)
+        elif self.available_models:
+            self.model_var.set(self.available_models[0])
+
+        if self.available_models:
+            self.model_status_var.set(f"Models: {len(self.available_models)} loaded")
+        else:
+            self.model_status_var.set("Models: manual entry or fetch list")
 
     def _configure_style(self) -> None:
         self.colors = {
@@ -266,7 +308,7 @@ class MarkdownConverterApp:
         self.open_output_button.grid(row=0, column=4, padx=(0, 8))
         self.open_config_button = ttk.Button(toolbar, text="Open Config", command=self.open_config)
         self.open_config_button.grid(row=0, column=5, padx=(0, 16))
-        self.test_api_button = ttk.Button(toolbar, text="Test API", command=self.test_api)
+        self.test_api_button = ttk.Button(toolbar, text="Test Model", command=self.test_api)
         self.test_api_button.grid(row=0, column=6, padx=(0, 8))
         self.preflight_button = ttk.Button(toolbar, text="Preflight", command=self.run_preflight_dialog)
         self.preflight_button.grid(row=0, column=7, padx=(0, 16))
@@ -351,16 +393,30 @@ class MarkdownConverterApp:
         self.settings_tab.columnconfigure(1, weight=1)
         self._add_labeled_entry(self.settings_tab, 0, "API key", self.api_key_var, show="*")
         self._add_labeled_entry(self.settings_tab, 1, "API URL", self.api_url_var)
-        self._add_labeled_entry(self.settings_tab, 2, "Model", self.model_var)
-        self._add_labeled_entry(self.settings_tab, 3, "Output folder", self.output_dir_var, browse_command=self.select_output_dir)
-        self._add_labeled_entry(self.settings_tab, 4, "Style reference", self.style_reference_var, browse_command=self.select_style_reference)
-        ttk.Label(self.settings_tab, text="Existing output", style="Body.TLabel").grid(row=5, column=0, sticky="w", padx=(0, 10), pady=(12, 0))
+
+        ttk.Label(self.settings_tab, text="Model", style="Body.TLabel").grid(row=2, column=0, sticky="w", padx=(0, 10), pady=(10, 0))
+        model_row = ttk.Frame(self.settings_tab, style="Panel.TFrame")
+        model_row.grid(row=2, column=1, columnspan=2, sticky="ew", pady=(10, 0))
+        model_row.columnconfigure(0, weight=1)
+        self.model_combo = ttk.Combobox(model_row, textvariable=self.model_var, values=self.available_models)
+        self.model_combo.grid(row=0, column=0, sticky="ew")
+        self.fetch_models_button = ttk.Button(model_row, text="Fetch Models", command=self.fetch_models)
+        self.fetch_models_button.grid(row=0, column=1, padx=(8, 0))
+        self.test_model_button = ttk.Button(model_row, text="Test Model", command=self.test_selected_model)
+        self.test_model_button.grid(row=0, column=2, padx=(8, 0))
+        ttk.Label(self.settings_tab, textvariable=self.model_status_var, style="Body.TLabel").grid(row=3, column=1, columnspan=2, sticky="w", pady=(6, 0))
+
+        self._add_labeled_entry(self.settings_tab, 4, "Output folder", self.output_dir_var, browse_command=self.select_output_dir)
+        self._add_labeled_entry(self.settings_tab, 5, "Style reference", self.style_reference_var, browse_command=self.select_style_reference)
+        ttk.Label(self.settings_tab, text="Existing output", style="Body.TLabel").grid(row=6, column=0, sticky="w", padx=(0, 10), pady=(12, 0))
         overwrite_combo = ttk.Combobox(self.settings_tab, textvariable=self.overwrite_mode_var, values=("rename", "overwrite", "fail"), state="readonly", width=16)
-        overwrite_combo.grid(row=5, column=1, sticky="w", pady=(12, 0))
+        overwrite_combo.grid(row=6, column=1, sticky="w", pady=(12, 0))
         self.stream_check = ttk.Checkbutton(self.settings_tab, text="Use streaming responses", variable=self.stream_var)
-        self.stream_check.grid(row=6, column=0, columnspan=3, sticky="w", pady=(16, 0))
+        self.stream_check.grid(row=7, column=0, columnspan=3, sticky="w", pady=(16, 0))
         self.auto_save_button = ttk.Button(self.settings_tab, text="Save Settings", command=lambda: self.save_config_from_current_fields())
-        self.auto_save_button.grid(row=7, column=0, sticky="w", pady=(18, 0))
+        self.auto_save_button.grid(row=8, column=0, sticky="w", pady=(18, 0))
+
+        self.update_model_choices(self.available_models, self.model_var.get())
 
     def _build_advanced_tab(self) -> None:
         self.advanced_tab.columnconfigure(1, weight=1)
@@ -428,6 +484,7 @@ class MarkdownConverterApp:
             "api_key": self.api_key_var.get().strip(),
             "api_url": self.api_url_var.get().strip(),
             "model": self.model_var.get().strip(),
+            "known_models": self.available_models,
             "output_dir": self.output_dir_var.get().strip(),
             "style_reference": self.style_reference_var.get().strip(),
             "pages_per_request": self.pages_per_request_var.get().strip(),
@@ -460,6 +517,7 @@ class MarkdownConverterApp:
             self.append_log(f"Loaded config from {self.config_path}")
         else:
             self.append_log(f"Created config at {self.config_path}")
+        self.update_model_choices(self.available_models, self.model_var.get())
         self.save_config_from_current_fields(silent=True)
         self.append_log(f"Ready. Add or drop {SUPPORTED_INPUT_LABEL} files to start.")
 
@@ -578,13 +636,22 @@ class MarkdownConverterApp:
             raise ValueError(f"{label} must be at least {minimum}.")
         return value
 
-    def collect_settings(self) -> dict:
+    def collect_api_connection_settings(self) -> dict:
         api_key = self.api_key_var.get().strip() or os.environ.get("ARK_API_KEY", "").strip()
         if not api_key:
             raise ValueError("API key is required. Enter it in the GUI or set ARK_API_KEY.")
         api_url = self.api_url_var.get().strip() or DEFAULT_API_URL
         if not api_url.startswith(("http://", "https://")):
             raise ValueError("API URL must start with http:// or https://.")
+        timeout = self.get_integer("Timeout", self.timeout_var.get().strip(), 1)
+        return {
+            "api_key": api_key,
+            "api_url": api_url,
+            "timeout": timeout,
+        }
+
+    def collect_settings(self) -> dict:
+        connection_settings = self.collect_api_connection_settings()
         output_dir_raw = self.output_dir_var.get().strip()
         output_dir = Path(output_dir_raw).expanduser() if output_dir_raw else None
         if output_dir is not None:
@@ -599,17 +666,18 @@ class MarkdownConverterApp:
         overwrite_mode = self.overwrite_mode_var.get().strip() or "rename"
         if overwrite_mode not in {"rename", "overwrite", "fail"}:
             raise ValueError("Existing output must be rename, overwrite, or fail.")
+        model = self.model_var.get().strip() or DEFAULT_MODEL
+        if not model:
+            raise ValueError("Model is required.")
         return {
-            "api_key": api_key,
-            "api_url": api_url,
-            "model": self.model_var.get().strip() or DEFAULT_MODEL,
+            **connection_settings,
+            "model": model,
             "output_dir": output_dir,
             "style_reference": style_reference,
             "pages_per_request": self.get_integer("Pages/request", self.pages_per_request_var.get().strip(), 1),
             "max_concurrency": self.get_integer("Workers", self.max_concurrency_var.get().strip(), 1),
             "render_dpi": self.get_integer("Render DPI", self.render_dpi_var.get().strip(), 1),
             "page_text_limit": self.get_integer("Text limit", self.page_text_limit_var.get().strip(), 0),
-            "timeout": self.get_integer("Timeout", self.timeout_var.get().strip(), 1),
             "chunk_cache_dir": str(chunk_cache_dir) if chunk_cache_dir else "",
             "overwrite_mode": overwrite_mode,
             "stream": self.stream_var.get(),
@@ -877,6 +945,10 @@ class MarkdownConverterApp:
         self.retry_button.configure(state=normal_state)
         self.test_api_button.configure(state=normal_state)
         self.preflight_button.configure(state=normal_state)
+        if hasattr(self, "fetch_models_button"):
+            self.fetch_models_button.configure(state=normal_state)
+        if hasattr(self, "test_model_button"):
+            self.test_model_button.configure(state=normal_state)
         self.process_button.configure(state="disabled" if running else "normal")
         self.cancel_button.configure(state="normal" if running else "disabled")
 
@@ -887,41 +959,87 @@ class MarkdownConverterApp:
         self.status_var.set("Cancelling after current API request finishes ...")
         self.append_log("Cancellation requested.")
 
-    def test_api(self) -> None:
+    def fetch_models(self) -> None:
+        try:
+            connection_settings = self.collect_api_connection_settings()
+        except Exception as exc:
+            messagebox.showerror("Invalid settings", str(exc))
+            return
+        self.fetch_models_button.configure(state="disabled")
+        self.status_var.set("Fetching model list ...")
+        self.append_log("Fetching model list from the configured API endpoint ...")
+        threading.Thread(target=self.run_fetch_models, args=(connection_settings,), daemon=True).start()
+
+    def run_fetch_models(self, connection_settings: dict) -> None:
+        try:
+            models = list_available_models(
+                api_url=connection_settings["api_url"],
+                api_key=connection_settings["api_key"],
+                timeout=connection_settings["timeout"],
+            )
+        except Exception as exc:
+            self.root.after(0, self.finish_fetch_models, False, str(exc), [])
+            return
+        self.root.after(0, self.finish_fetch_models, True, f"Loaded {len(models)} models.", models)
+
+    def finish_fetch_models(self, success: bool, message: str, models: list[str]) -> None:
+        self.fetch_models_button.configure(state="normal")
+        if success:
+            self.update_model_choices(models, self.model_var.get())
+            self.save_config_from_current_fields(silent=True)
+            self.status_var.set("Model list updated")
+            self.append_log(message)
+            return
+
+        self.status_var.set("Model list fetch failed")
+        self.model_status_var.set("Models: fetch failed, keep manual entry")
+        self.append_log(f"Model list fetch failed: {message}")
+        messagebox.showerror("Fetch models failed", message)
+
+    def test_selected_model(self) -> None:
         try:
             settings = self.collect_settings()
         except Exception as exc:
             messagebox.showerror("Invalid settings", str(exc))
             return
         self.test_api_button.configure(state="disabled")
-        self.status_var.set("Testing API ...")
-        threading.Thread(target=self.run_api_test, args=(settings,), daemon=True).start()
+        if hasattr(self, "test_model_button"):
+            self.test_model_button.configure(state="disabled")
+        self.status_var.set(f"Testing model {settings['model']} ...")
+        threading.Thread(target=self.run_model_test, args=(settings,), daemon=True).start()
 
-    def run_api_test(self, settings: dict) -> None:
+    def test_api(self) -> None:
+        self.test_selected_model()
+
+    def run_model_test(self, settings: dict) -> None:
+        started_at = time.perf_counter()
         try:
             result = call_responses_api(
                 api_url=settings["api_url"],
                 api_key=settings["api_key"],
                 model=settings["model"],
-                content=[{"type": "input_text", "text": "Reply with the single word OK."}],
+                content=[{"type": "input_text", "text": "Reply with a short JSON object containing status and one sentence summary."}],
                 timeout=settings["timeout"],
                 stream=False,
             )
         except Exception as exc:
-            self.root.after(0, self.finish_api_test, False, str(exc))
+            self.root.after(0, self.finish_model_test, False, settings["model"], str(exc), 0.0)
             return
-        self.root.after(0, self.finish_api_test, True, result[:200])
+        elapsed_seconds = time.perf_counter() - started_at
+        self.root.after(0, self.finish_model_test, True, settings["model"], result[:400], elapsed_seconds)
 
-    def finish_api_test(self, success: bool, message: str) -> None:
+    def finish_model_test(self, success: bool, model_name: str, message: str, elapsed_seconds: float) -> None:
         self.test_api_button.configure(state="normal" if not self.is_processing else "disabled")
+        if hasattr(self, "test_model_button"):
+            self.test_model_button.configure(state="normal")
         if success:
-            self.status_var.set("API test succeeded")
-            self.append_log(f"API test succeeded: {message}")
-            messagebox.showinfo("API test", f"API responded: {message}")
+            self.status_var.set(f"Model test succeeded: {model_name}")
+            self.append_log(f"Model test succeeded for {model_name} in {elapsed_seconds:.2f}s: {message}")
+            messagebox.showinfo("Model test", f"Model: {model_name}\nLatency: {elapsed_seconds:.2f}s\n\nResponse:\n{message}")
         else:
-            self.status_var.set("API test failed")
-            self.append_log(f"API test failed: {message}")
-            messagebox.showerror("API test failed", message)
+            self.status_var.set(f"Model test failed: {model_name}")
+            self.append_log(f"Model test failed for {model_name}: {message}")
+            messagebox.showerror("Model test failed", message)
 
     def open_config(self) -> None:
         self.save_config_from_current_fields(silent=True)
