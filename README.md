@@ -21,7 +21,8 @@
 
 </div>
 
-<img width="1518" height="838" alt="PDF2MD Workbench screenshot" src="https://github.com/user-attachments/assets/093ad210-09bc-4a73-b42f-79ffa6b5b416" />
+<img width="1319" height="841" alt="image" src="https://github.com/user-attachments/assets/709c701a-1ac4-4d71-9681-374093cda49a" />
+
 
 <details>
 <summary>PDF2MD Workbench — Queue-based desktop Markdown conversion for API-driven workflows</summary>
