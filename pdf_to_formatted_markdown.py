@@ -415,12 +415,18 @@ def find_soffice_executable() -> Optional[str]:
 def get_office_conversion_help_text() -> str:
     if sys.platform == "darwin":
         return (
-            "Install LibreOffice for DOC, DOCX, PPT, and PPTX conversion. "
-            "Expected locations include /Applications/LibreOffice.app or /opt/homebrew/bin/soffice. "
-            "If LibreOffice is installed elsewhere, set PDF2MD_SOFFICE_PATH to the full soffice path."
+            "LibreOffice is required for DOC, DOCX, PPT, and PPTX conversion on macOS. "
+            "Install it from https://www.libreoffice.org/download/download-libreoffice/ or with Homebrew using 'brew install --cask libreoffice'. "
+            "Common executable paths are /Applications/LibreOffice.app/Contents/MacOS/soffice and /opt/homebrew/bin/soffice. "
+            "If your install is elsewhere, set PDF2MD_SOFFICE_PATH to the full soffice path."
         )
     if sys.platform.startswith("win"):
-        return "Install Microsoft Word/PowerPoint or LibreOffice for DOC, DOCX, PPT, and PPTX conversion."
+        return (
+            "LibreOffice or Microsoft Office is required for DOC, DOCX, PPT, and PPTX conversion on Windows. "
+            "Install LibreOffice from https://www.libreoffice.org/download/download-libreoffice/ and make sure soffice.exe is available, "
+            "usually under C:\\Program Files\\LibreOffice\\program\\soffice.exe. "
+            "If LibreOffice is installed elsewhere, set PDF2MD_SOFFICE_PATH to that soffice.exe path."
+        )
     return (
         "Install LibreOffice for DOC, DOCX, PPT, and PPTX conversion and ensure soffice is on PATH, "
         "or set PDF2MD_SOFFICE_PATH to the executable."
