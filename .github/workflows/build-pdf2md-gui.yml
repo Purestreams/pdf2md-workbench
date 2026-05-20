@@ -31,14 +31,12 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path release\pdf2md-gui-windows-x64 | Out-Null
           Copy-Item dist\pdf2md-gui.exe release\pdf2md-gui-windows-x64\ -Force
-          Copy-Item dist\pdf2md.config release\pdf2md-gui-windows-x64\ -Force
           Compress-Archive -Path release\pdf2md-gui-windows-x64\* -DestinationPath release\pdf2md-gui-windows-x64.zip -Force
       - uses: actions/upload-artifact@v7
         with:
           name: pdf2md-gui-windows
           path: |
             dist/pdf2md-gui.exe
-            dist/pdf2md.config
             release/pdf2md-gui-windows-x64.zip
 
   macos-arm:

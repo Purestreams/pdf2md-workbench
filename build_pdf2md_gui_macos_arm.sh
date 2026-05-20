@@ -21,7 +21,7 @@ if [[ ! -d "$VENV_DIR" ]]; then
 fi
 
 source "$VENV_DIR/bin/activate"
-python -m pip install --upgrade pip certifi pyinstaller PyMuPDF tkinterdnd2
+python -m pip install --upgrade pip certifi pyinstaller PyMuPDF PySide6 qt-material
 python -m compileall pdf_to_formatted_markdown.py pdf_to_formatted_markdown_gui.py
 python -m PyInstaller --noconfirm --clean pdf2md-gui.spec
 

@@ -167,7 +167,6 @@ If LibreOffice is installed elsewhere, set `PDF2MD_SOFFICE_PATH` to the full `so
 Outputs:
 
 - `dist/pdf2md-gui.exe`
-- `dist/pdf2md.config`
 
 ## macOS Apple Silicon
 
@@ -204,8 +203,10 @@ The app stores settings in `pdf2md.config`.
 
 Config location:
 
-- Windows source and packaged builds: next to the script or executable
-- macOS packaged builds: `~/Library/Application Support/PDF2MD Workbench/pdf2md.config`
+- Windows source and packaged builds: `%APPDATA%\PDF2MD Workbench\pdf2md.config`
+- macOS source and packaged builds: `~/Library/Application Support/PDF2MD Workbench/pdf2md.config`
+
+If an older config exists next to the script or executable, the app migrates it into the user config directory on first launch.
 
 Stored settings include:
 

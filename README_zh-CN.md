@@ -167,7 +167,6 @@ brew install --cask libreoffice
 输出：
 
 - `dist/pdf2md-gui.exe`
-- `dist/pdf2md.config`
 
 ## macOS Apple Silicon
 
@@ -204,8 +203,10 @@ DMG 中包含 `.app` 与 `Applications` 快捷方式，符合标准 macOS 拖拽
 
 配置位置：
 
-- Windows 源码版与打包版：脚本或可执行文件同目录
-- macOS 打包版： `~/Library/Application Support/PDF2MD Workbench/pdf2md.config`
+- Windows 源码版与打包版： `%APPDATA%\PDF2MD Workbench\pdf2md.config`
+- macOS 源码版与打包版： `~/Library/Application Support/PDF2MD Workbench/pdf2md.config`
+
+如果旧版配置文件仍在脚本或可执行文件旁边，应用会在首次启动时自动迁移到用户目录。
 
 主要配置项包括：
 

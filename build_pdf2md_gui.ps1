@@ -10,16 +10,11 @@ if (-not (Test-Path $python)) {
     $python = 'python'
 }
 
-& $python -m pip install --upgrade certifi pyinstaller PyMuPDF tkinterdnd2
+& $python -m pip install --upgrade certifi pyinstaller PyMuPDF PySide6 qt-material
 & $python -m compileall pdf_to_formatted_markdown.py pdf_to_formatted_markdown_gui.py
 & $python -m PyInstaller --noconfirm --clean pdf2md-gui.spec
 
 $distDir = Join-Path $PSScriptRoot 'dist'
-$configPath = Join-Path $PSScriptRoot 'pdf2md.config'
-if (Test-Path $configPath) {
-    Copy-Item $configPath (Join-Path $distDir 'pdf2md.config') -Force
-}
-
 $exePath = Join-Path $distDir 'pdf2md-gui.exe'
 if (-not (Test-Path $exePath)) {
     throw "Build did not produce $exePath"
@@ -38,4 +33,6 @@ if (-not $SkipSmokeTest) {
     Stop-Process -Id $process.Id -Force
 }
 
-Get-Item $exePath, (Join-Path $distDir 'pdf2md.config') | Select-Object FullName, Length, LastWriteTime
+$runtimeConfigRoot = if ($env:APPDATA) { Join-Path $env:APPDATA 'PDF2MD Workbench' } else { Join-Path (Join-Path $HOME 'AppData\Roaming') 'PDF2MD Workbench' }
+Get-Item $exePath | Select-Object FullName, Length, LastWriteTime
+Write-Host "Runtime config path: $(Join-Path $runtimeConfigRoot 'pdf2md.config')"

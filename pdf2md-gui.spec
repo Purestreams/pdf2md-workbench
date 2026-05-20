@@ -1,4 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
+from pathlib import Path
 import sys
 
 from PyInstaller.utils.hooks import collect_all
@@ -6,8 +7,13 @@ from PyInstaller.utils.hooks import collect_all
 datas = []
 binaries = []
 hiddenimports = []
-tmp_ret = collect_all('tkinterdnd2')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+for package_name in ('qt_material',):
+    tmp_ret = collect_all(package_name)
+    datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+
+icon_dir = Path('assets') / 'icons'
+if icon_dir.is_dir():
+    datas += [(str(path), 'assets/icons') for path in icon_dir.glob('*.svg')]
 
 
 a = Analysis(
