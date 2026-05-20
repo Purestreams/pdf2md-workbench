@@ -364,6 +364,19 @@ def get_chunk_cache_path(cache_dir: Optional[Path], chunk_index: int, start_page
     return cache_dir / f"chunk_{chunk_index:03d}_pages_{start_page:03d}_{end_page:03d}.md"
 
 
+def get_subprocess_run_kwargs() -> dict:
+    if sys.platform != "win32":
+        return {}
+
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    startupinfo.wShowWindow = subprocess.SW_HIDE
+    return {
+        "creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        "startupinfo": startupinfo,
+    }
+
+
 def run_subprocess(command: Sequence[str], timeout: int, error_context: str) -> None:
     try:
         completed = subprocess.run(
@@ -372,6 +385,7 @@ def run_subprocess(command: Sequence[str], timeout: int, error_context: str) -> 
             capture_output=True,
             text=True,
             timeout=timeout,
+            **get_subprocess_run_kwargs(),
         )
     except FileNotFoundError as exc:
         raise RuntimeError(f"{error_context}: executable not found.") from exc
