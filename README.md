@@ -34,6 +34,8 @@ It includes:
 - macOS / Linux:
   - LibreOffice for DOC, DOCX, PPT, PPTX to PDF conversion
 
+On macOS, Finder-launched apps often do not inherit your shell PATH. PDF2MD Workbench therefore also checks common LibreOffice locations such as `/Applications/LibreOffice.app/Contents/MacOS/soffice`, `~/Applications/LibreOffice.app/Contents/MacOS/soffice`, and `/opt/homebrew/bin/soffice`. If your installation lives elsewhere, set `PDF2MD_SOFFICE_PATH` to the full `soffice` path.
+
 Install dependencies:
 
 ```bash

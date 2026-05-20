@@ -44,6 +44,16 @@ STREAM_PROGRESS_INTERVAL_SECONDS = 0.5
 SUPPORTED_INPUT_SUFFIXES = (".pdf", ".doc", ".docx", ".ppt", ".pptx")
 WORD_EXPORT_FORMAT_PDF = 17
 POWERPOINT_SAVE_AS_PDF = 32
+MACOS_SOFFICE_PATHS = (
+    Path("/Applications/LibreOffice.app/Contents/MacOS/soffice"),
+    Path.home() / "Applications/LibreOffice.app/Contents/MacOS/soffice",
+    Path("/opt/homebrew/bin/soffice"),
+    Path("/usr/local/bin/soffice"),
+)
+WINDOWS_SOFFICE_PATHS = (
+    Path("C:/Program Files/LibreOffice/program/soffice.exe"),
+    Path("C:/Program Files (x86)/LibreOffice/program/soffice.exe"),
+)
 
 
 @dataclass
@@ -378,24 +388,49 @@ def run_subprocess(command: Sequence[str], timeout: int, error_context: str) -> 
 
 
 def find_soffice_executable() -> Optional[str]:
-    soffice = shutil.which("soffice")
-    if soffice:
-        return soffice
-
-    common_paths = [
-        Path("C:/Program Files/LibreOffice/program/soffice.exe"),
-        Path("C:/Program Files (x86)/LibreOffice/program/soffice.exe"),
+    override_candidates = [
+        os.environ.get("PDF2MD_SOFFICE_PATH", "").strip(),
+        os.environ.get("SOFFICE_PATH", "").strip(),
+        os.environ.get("LIBREOFFICE_PATH", "").strip(),
     ]
+    for override in override_candidates:
+        if override and Path(override).is_file():
+            return override
+
+    for executable_name in ("soffice", "libreoffice"):
+        soffice = shutil.which(executable_name)
+        if soffice:
+            return soffice
+
+    common_paths = list(WINDOWS_SOFFICE_PATHS)
+    if sys.platform == "darwin":
+        common_paths = [*MACOS_SOFFICE_PATHS, *common_paths]
+
     for candidate in common_paths:
         if candidate.is_file():
             return str(candidate)
     return None
 
 
+def get_office_conversion_help_text() -> str:
+    if sys.platform == "darwin":
+        return (
+            "Install LibreOffice for DOC, DOCX, PPT, and PPTX conversion. "
+            "Expected locations include /Applications/LibreOffice.app or /opt/homebrew/bin/soffice. "
+            "If LibreOffice is installed elsewhere, set PDF2MD_SOFFICE_PATH to the full soffice path."
+        )
+    if sys.platform.startswith("win"):
+        return "Install Microsoft Word/PowerPoint or LibreOffice for DOC, DOCX, PPT, and PPTX conversion."
+    return (
+        "Install LibreOffice for DOC, DOCX, PPT, and PPTX conversion and ensure soffice is on PATH, "
+        "or set PDF2MD_SOFFICE_PATH to the executable."
+    )
+
+
 def convert_with_soffice(input_path: Path, output_pdf_path: Path, timeout: int) -> None:
     soffice = find_soffice_executable()
     if soffice is None:
-        raise RuntimeError("LibreOffice soffice was not found.")
+        raise RuntimeError(f"LibreOffice soffice was not found. {get_office_conversion_help_text()}")
 
     soffice_output_path = output_pdf_path.parent / f"{input_path.stem}.pdf"
     soffice_output_path.unlink(missing_ok=True)
@@ -525,7 +560,7 @@ def prepare_pdf_input(
 
     details = " | ".join(conversion_errors)
     raise RuntimeError(
-        f"Unable to convert {input_path.name} to PDF. Install Microsoft Word/PowerPoint or LibreOffice. {details}"
+        f"Unable to convert {input_path.name} to PDF. {get_office_conversion_help_text()} {details}"
     )
 
 

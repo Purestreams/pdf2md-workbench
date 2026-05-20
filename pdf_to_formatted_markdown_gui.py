@@ -24,6 +24,7 @@ from pdf_to_formatted_markdown import (
     call_responses_api,
     convert_pdf_to_markdown,
     find_soffice_executable,
+    get_office_conversion_help_text,
     list_available_models,
 )
 
@@ -728,9 +729,9 @@ class MarkdownConverterApp:
             if sys.platform.startswith("win"):
                 messages.append("Office inputs require Microsoft Office COM or LibreOffice on this machine.")
             elif find_soffice_executable() is None:
-                messages.append("LibreOffice was not found; Office inputs may fail on this platform.")
+                messages.append(get_office_conversion_help_text())
             else:
-                messages.append("LibreOffice was found for Office document conversion.")
+                messages.append(f"LibreOffice was found for Office document conversion: {find_soffice_executable()}")
         return messages
 
     def run_preflight_dialog(self) -> None:
